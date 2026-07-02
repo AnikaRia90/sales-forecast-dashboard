@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Sales Forecasting Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0d14;
+    --surface: #13151f;
+    --surface2: #1b1e2e;
+    --border: #252839;
+    --accent: #6C63FF;
+    --accent2: #FF6584;
+    --green: #43E97B;
+    --yellow: #F7971E;
+    --text: #E2E8F0;
+    --muted: #64748B;
+    --card-radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 28px 32px;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .header-left h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+  .header-left p {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 3px;
+  }
+  .badge {
+    background: rgba(108,99,255,0.15);
+    border: 1px solid rgba(108,99,255,0.3);
+    color: #a89fff;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  /* ── Stat cards ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent-color, var(--accent));
+    border-radius: 3px 3px 0 0;
+  }
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    font-weight: 600;
+  }
+  .stat-value {
+    font-size: 26px;
+    font-weight: 800;
+    margin-top: 6px;
+    color: var(--text);
+    line-height: 1;
+  }
+  .stat-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 5px;
+  }
+
+  /* ── Controls ── */
+  .controls-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 14px 20px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .controls-bar label {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+  }
+  input[type=range] {
+    flex: 1;
+    min-width: 160px;
+    max-width: 280px;
+    accent-color: var(--accent);
+    height: 5px;
+    cursor: pointer;
+  }
+  .days-badge {
+    background: rgba(108,99,255,0.15);
+    color: #a89fff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    min-width: 70px;
+    text-align: center;
+  }
+  .btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 22px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    transition: opacity 0.2s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── Chart card ── */
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 22px 24px;
+    margin-bottom: 20px;
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+  }
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  canvas { max-height: 380px; width: 100% !important; }
+
+  /* ── Bottom row ── */
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 720px) {
+    .bottom-grid { grid-template-columns: 1fr; }
+    body { padding: 16px; }
+  }
+
+  /* ── Recommendation card ── */
+  .rec-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 22px 24px;
+  }
+  .rec-icon {
+    font-size: 28px;
+    margin-bottom: 10px;
+  }
+  .rec-text {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text);
+  }
+  .rec-status {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+  .status-up   { background: rgba(67,233,123,0.15); color: #43E97B; }
+  .status-down { background: rgba(255,101,132,0.15); color: #FF6584; }
+  .status-flat { background: rgba(247,151,30,0.15); color: #F7971E; }
+
+  /* ── Oil chart card ── */
+  .mini-chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    padding: 22px 24px;
+  }
+
+  /* ── Skeleton loader ── */
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+    height: 26px;
+    width: 80px;
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <h1>AI Sales Forecasting Dashboard</h1>
+    <p>Corporación Favorita — Ecuador Grocery Store Chain</p>
+  </div>
+  <span class="badge">Prophet Model</span>
+</div>
+
+<!-- Stat cards -->
+<div class="stats-grid" id="statsGrid">
+  <div class="stat-card"><div class="stat-label">Total Days</div><div class="skeleton" style="margin-top:8px"></div></div>
+  <div class="stat-card"><div class="stat-label">Date Range</div><div class="skeleton" style="margin-top:8px"></div></div>
+  <div class="stat-card"><div class="stat-label">Avg Daily Sales</div><div class="skeleton" style="margin-top:8px"></div></div>
+  <div class="stat-card"><div class="stat-label">Peak Sales</div><div class="skeleton" style="margin-top:8px"></div></div>
+  <div class="stat-card"><div class="stat-label">Holidays</div><div class="skeleton" style="margin-top:8px"></div></div>
+  <div class="stat-card"><div class="stat-label">Avg Oil Price</div><div class="skeleton" style="margin-top:8px"></div></div>
+</div>
+
+<!-- Controls -->
+<div class="controls-bar">
+  <label>Forecast Window</label>
+  <div class="slider-wrap">
+    <input type="range" id="daysSlider" min="7" max="90" value="30"
+           oninput="document.getElementById('daysLabel').textContent = this.value + ' days'">
+    <span class="days-badge" id="daysLabel">30 days</span>
+  </div>
+  <button class="btn" id="updateBtn" onclick="loadForecast()">Update Forecast</button>
+</div>
+
+<!-- Main chart -->
+<div class="chart-card">
+  <div class="card-header">
+    <span class="card-title">Historical Sales + Forecast</span>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#6C63FF"></div>Historical</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#FF6584"></div>Forecast</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(255,101,132,0.25)"></div>Confidence Band</div>
+    </div>
+  </div>
+  <canvas id="mainChart"></canvas>
+</div>
+
+<!-- Bottom row: recommendation + oil price mini chart -->
+<div class="bottom-grid">
+  <!-- Recommendation -->
+  <div class="rec-card">
+    <div class="card-title" style="margin-bottom:14px">Business Recommendation</div>
+    <div id="recStatus" class="rec-status status-flat">Stable</div>
+    <p class="rec-text" id="recText">Loading recommendation...</p>
+  </div>
+
+  <!-- Oil price trend -->
+  <div class="mini-chart-card">
+    <div class="card-title" style="margin-bottom:16px">Oil Price Trend (Last 180 Days)</div>
+    <canvas id="oilChart" style="max-height:180px"></canvas>
+  </div>
+</div>
+
+<script>
+let mainChart, oilChart;
+
+async function loadSummary() {
+  try {
+    const res = await fetch('/api/summary');
+    if (!res.ok) return;
+    const d = await res.json();
+    document.getElementById('statsGrid').innerHTML = `
+      <div class="stat-card" style="--accent-color:#6C63FF">
+        <div class="stat-label">Total Days</div>
+        <div class="stat-value">${d.total_days.toLocaleString()}</div>
+        <div class="stat-sub">in dataset</div>
+      </div>
+      <div class="stat-card" style="--accent-color:#43E97B">
+        <div class="stat-label">Date Range</div>
+        <div class="stat-value" style="font-size:15px;margin-top:8px">${d.date_from}</div>
+        <div class="stat-sub">→ ${d.date_to}</div>
+      </div>
+      <div class="stat-card" style="--accent-color:#F7971E">
+        <div class="stat-label">Avg Daily Sales</div>
+        <div class="stat-value">${Number(d.avg_daily_sales).toLocaleString()}</div>
+        <div class="stat-sub">units/day</div>
+      </div>
+      <div class="stat-card" style="--accent-color:#FF6584">
+        <div class="stat-label">Peak Sales</div>
+        <div class="stat-value">${Number(d.max_daily_sales).toLocaleString()}</div>
+        <div class="stat-sub">best single day</div>
+      </div>
+      <div class="stat-card" style="--accent-color:#38BDF8">
+        <div class="stat-label">Holidays</div>
+        <div class="stat-value">${d.total_holidays}</div>
+        <div class="stat-sub">national holidays</div>
+      </div>
+      <div class="stat-card" style="--accent-color:#A78BFA">
+        <div class="stat-label">Avg Oil Price</div>
+        <div class="stat-value">$${d.avg_oil_price}</div>
+        <div class="stat-sub">USD per barrel</div>
+      </div>
+    `;
+  } catch(e) { console.error('Summary error:', e); }
+}
+
+async function loadHistorical() {
+  const res = await fetch('/api/historical');
+  if (!res.ok) return null;
+  return await res.json();
+}
+
+async function loadForecast() {
+  const btn = document.getElementById('updateBtn');
+  btn.disabled = true;
+  btn.textContent = 'Loading...';
+
+  const days = document.getElementById('daysSlider').value;
+  const [hist, fcRes] = await Promise.all([
+    loadHistorical(),
+    fetch('/api/forecast?days=' + days)
+  ]);
+
+  btn.disabled = false;
+  btn.textContent = 'Update Forecast';
+
+  if (!fcRes.ok) {
+    document.getElementById('recText').textContent =
+      "Model not trained. Run: python train.py first.";
+    return;
+  }
+
+  const fc = await fcRes.json();
+
+  // ── Recommendation ──────────────────────────────────────────────────────
+  const rec = fc.recommendation;
+  document.getElementById('recText').textContent = rec;
+  const statusEl = document.getElementById('recStatus');
+  if (rec.includes('INCREASE')) {
+    statusEl.textContent = '↑ Increasing'; statusEl.className = 'rec-status status-up';
+  } else if (rec.includes('DECREASE')) {
+    statusEl.textContent = '↓ Decreasing'; statusEl.className = 'rec-status status-down';
+  } else {
+    statusEl.textContent = '→ Stable'; statusEl.className = 'rec-status status-flat';
+  }
+
+  if (!hist) return;
+
+  // ── Main chart ──────────────────────────────────────────────────────────
+  const allLabels = [...hist.dates, ...fc.dates];
+  const histData  = [...hist.sales, ...Array(fc.dates.length).fill(null)];
+  const fcData    = [...Array(hist.dates.length).fill(null), ...fc.forecast];
+  const upper     = [...Array(hist.dates.length).fill(null), ...fc.upper_bound];
+  const lower     = [...Array(hist.dates.length).fill(null), ...fc.lower_bound];
+
+  if (mainChart) mainChart.destroy();
+  mainChart = new Chart(document.getElementById('mainChart'), {
+    type: 'line',
+    data: {
+      labels: allLabels,
+      datasets: [
+        {
+          label: 'Historical Sales',
+          data: histData,
+          borderColor: '#6C63FF',
+          backgroundColor: 'transparent',
+          pointRadius: 0,
+          tension: 0.3,
+          borderWidth: 2.5,
+          order: 1,
+        },
+        {
+          label: 'Forecast',
+          data: fcData,
+          borderColor: '#FF6584',
+          borderDash: [6, 4],
+          backgroundColor: 'transparent',
+          pointRadius: 0,
+          tension: 0.3,
+          borderWidth: 2.5,
+          order: 2,
+        },
+        {
+          label: 'Upper Bound',
+          data: upper,
+          borderColor: 'transparent',
+          backgroundColor: 'rgba(255,101,132,0.12)',
+          pointRadius: 0,
+          tension: 0.3,
+          fill: '+1',
+          borderWidth: 0,
+          order: 3,
+        },
+        {
+          label: 'Lower Bound',
+          data: lower,
+          borderColor: 'transparent',
+          backgroundColor: 'rgba(255,101,132,0.12)',
+          pointRadius: 0,
+          tension: 0.3,
+          fill: false,
+          borderWidth: 0,
+          order: 4,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1b1e2e',
+          borderColor: '#252839',
+          borderWidth: 1,
+          titleColor: '#94A3B8',
+          bodyColor: '#E2E8F0',
+          callbacks: {
+            label: ctx => {
+              if (ctx.dataset.label.includes('Bound')) return null;
+              return ` ${ctx.dataset.label}: ${Number(ctx.raw).toLocaleString()}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#475569', maxTicksLimit: 10, font: { size: 11 } },
+          grid: { color: '#1b1e2e' },
+          border: { color: '#252839' }
+        },
+        y: {
+          ticks: { color: '#475569', font: { size: 11 } },
+          grid: { color: '#1b1e2e' },
+          border: { color: '#252839' }
+        }
+      }
+    }
+  });
+
+  // ── Oil price mini chart ────────────────────────────────────────────────
+  if (oilChart) oilChart.destroy();
+  oilChart = new Chart(document.getElementById('oilChart'), {
+    type: 'line',
+    data: {
+      labels: hist.dates,
+      datasets: [{
+        label: 'Oil Price (USD)',
+        data: hist.oil_price,
+        borderColor: '#F7971E',
+        backgroundColor: 'rgba(247,151,30,0.08)',
+        fill: true,
+        pointRadius: 0,
+        tension: 0.4,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1b1e2e',
+          borderColor: '#252839',
+          borderWidth: 1,
+          titleColor: '#94A3B8',
+          bodyColor: '#E2E8F0',
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#475569', maxTicksLimit: 6, font: { size: 10 } },
+          grid: { color: '#1b1e2e' },
+          border: { color: '#252839' }
+        },
+        y: {
+          ticks: { color: '#475569', font: { size: 10 } },
+          grid: { color: '#1b1e2e' },
+          border: { color: '#252839' }
+        }
+      }
+    }
+  });
+}
+
+// Init
+loadSummary();
+loadForecast();
+</script>
+</body>
+</html>
