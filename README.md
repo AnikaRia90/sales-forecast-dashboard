@@ -1,5 +1,4 @@
-# AI Sales Forecasting Dashboard
-### Final Project — AI/ML Fresher Training Plan
+# AI Sales Forecasting Dashboard 
 
 ---
 
