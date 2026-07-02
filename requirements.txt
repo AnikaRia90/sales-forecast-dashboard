@@ -1,0 +1,17 @@
+pandas
+numpy
+scikit-learn
+joblib
+fastapi
+uvicorn[standard]
+python-multipart
+prophet
+
+
+docker run -p 8000:8000 yourusername/plant-disease-api:latest
+
+docker run -p 8000:8000 sales-forecast
+
+# Large files - too big for GitHub
+data/
+models/
